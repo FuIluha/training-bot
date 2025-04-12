@@ -10,8 +10,10 @@ import logging
 import aiosqlite
 import os
 import nest_asyncio
-from start import start_router
+from commands import command_router
 from testing import testing_router
+from training import training_router
+from subscribe import subscribing_router
 
 token = os.getenv('BOT_TOKEN')
 if not token:
@@ -20,7 +22,9 @@ if not token:
 bot = Bot(token=token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher(storage=MemoryStorage())
 dp.include_router(testing_router)
-dp.include_router(start_router)
+dp.include_router(training_router)
+dp.include_router(subscribing_router)
+dp.include_router(command_router)
 
 nest_asyncio.apply()
 
@@ -57,7 +61,7 @@ async def start_db():
     async with aiosqlite.connect('users.db') as db:
         await db.execute('''
             CREATE TABLE IF NOT EXISTS users (
-                id INTEGER,
+                id INTEGER PRIMARY KEY,
                 name STRING
             )
         ''')
@@ -65,7 +69,17 @@ async def start_db():
         await db.execute('''
             CREATE TABLE IF NOT EXISTS test_results (
                 user_id INTEGER,
-                results TEXT
+                results TEXT,
+                FOREIGN KEY(user_id) REFERENCES users(id)
+            )
+        ''')
+        await db.commit()
+        await db.execute('''
+            CREATE TABLE IF NOT EXISTS subscriptions (
+                user_id INTEGER,
+                weeks INTEGER CHECK(weeks IN (0, 1, 2, 3, 4)),
+                FOREIGN KEY(user_id) REFERENCES users(id),
+                PRIMARY KEY (user_id)
             )
         ''')
         await db.commit()
